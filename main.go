@@ -3,28 +3,14 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	log "github.com/s00500/env_logger"
 
 	"github.com/google/gousb"
-	"github.com/sirupsen/logrus"
 )
 
 var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
-
-func init() {
-
-	logger := &logrus.Logger{
-		//Out:       ioutil.Discard,
-		Out:       os.Stderr,
-		Level:     logrus.InfoLevel,
-		Formatter: &logrus.TextFormatter{},
-	}
-	debugConfig, _ := os.LookupEnv("LOG")
-	log.ConfigureAllLoggers(logger, debugConfig)
-}
 
 func main() {
 	log.Info("Starting")
@@ -35,6 +21,8 @@ func main() {
 
 	ctx := gousb.NewContext()
 	defer ctx.Close()
+
+	ffmpegIn := StartFFMPEGInstance()
 
 	for {
 		// Open any device with a given VID/PID using a convenience function.
@@ -83,7 +71,8 @@ func main() {
 			continue
 		}
 
-		num, err := io.Copy(os.Stdout, stream)
+		num, err := io.Copy(ffmpegIn, stream)
+		//num, err := io.Copy(os.Stdout, stream)
 		//_, err = io.Copy(ioutil.Discard, stream)
 		if !log.Should(err) {
 			log.Info("Wrote ", num, " bytes")

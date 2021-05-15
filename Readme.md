@@ -6,12 +6,12 @@ The intersting thing is that it seems to **start working in low power mode** as 
 
 Also this script should support unplugging and replugging USB, disconnecting / reconnecting the drone and should not care if it is started while the goggles are off
 
+FFMpeg needs to be available in your path, it will be started by the go binary automatically
+
 ## Running
 
 I usually run this like so:
-
-go run . | ffplay -i - -fast -flags2 fast -fflags nobuffer -flags low_delay -strict experimental -vf "setpts=N/60/TB" -framedrop -sync ext -probesize 32 -analyzeduration 0
-
+go run .
 
 Crosscompilation does not work in an easy way due to the dependency on libusb
 
