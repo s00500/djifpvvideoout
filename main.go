@@ -67,7 +67,8 @@ func main() {
 }
 
 func openStream(dev *gousb.Device) {
-	ffmpegIn, stopPlayer := StartFFMPEGInstance()
+	sink := FFPlaySink{}
+	ffmpegIn, stopPlayer := sink.StartInstance()
 	// claim interface
 	intf, done, err := googleInterface(dev)
 	if err != nil {
