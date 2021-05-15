@@ -30,6 +30,22 @@ func (sink FFPlaySink) StartInstance() (io.WriteCloser, func()) {
 	}
 }
 
+type GstSink struct {
+}
+
+func (sink GstSink) StartInstance() (io.WriteCloser, func()) {
+	args := []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "!", "autovideosink"}
+	cmd := exec.Command("gst-launch-1.0", args...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal("Could not get gstreamer stdin")
+	}
+	log.MustFatal(cmd.Start())
+	return stdin, func() {
+		cmd.Process.Signal(syscall.SIGKILL) // Not ellegant... could try sigterm and wait before...
+	}
+}
+
 type UdpSink struct {
 }
 

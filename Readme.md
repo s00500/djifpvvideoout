@@ -16,10 +16,10 @@ Make sure you have go and ffmpeg installed, then run like this:
 
 `go run .`
 
+Per default this will use ffplay, if you want to use gstreamer though use it like this `go run . --gstreamer`
+
 Crosscompilation does not work in an easy way due to the dependency on libusb
-
 If you find any new intersting things about this let me know on the discordserver @s00500 or here in the issue section
-
 
 ## Test status
 

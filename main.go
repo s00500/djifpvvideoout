@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"sync"
@@ -13,8 +14,14 @@ import (
 
 var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
 
+var useGstreamer *bool = flag.Bool("gstreamer", false, "use gstreamer")
+
 func main() {
+	flag.Parse()
 	log.Info("Starting djifpvvideout")
+	if useGstreamer != nil && *useGstreamer {
+		log.Info("using gstreamer")
+	}
 
 	openPorts := make([]string, 0)
 	openPortsMu := sync.RWMutex{}
@@ -59,7 +66,6 @@ func main() {
 				openPorts = deleteElement(openPorts, fmt.Sprintf("%d.%d", dev.Desc.Bus, dev.Desc.Address))
 				openPortsMu.Unlock()
 				log.Warnf("lost device on %d.%d", dev.Desc.Bus, dev.Desc.Address)
-
 			}()
 		}
 		time.Sleep(time.Second * 3)
@@ -67,7 +73,13 @@ func main() {
 }
 
 func openStream(dev *gousb.Device) {
-	sink := FFPlaySink{}
+	var sink StreamSink
+	if useGstreamer != nil && *useGstreamer {
+		sink = GstSink{}
+	} else {
+		sink = FFPlaySink{}
+
+	}
 	ffmpegIn, stopPlayer := sink.StartInstance()
 	// claim interface
 	intf, done, err := googleInterface(dev)
