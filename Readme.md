@@ -1,17 +1,20 @@
 # djifpvvideoout
 
-This is a straightforward port of the dji fpv videooutscript (from [here](https://github.com/fpv-wtf/voc-poc)) to **golang**
+This is a port of the dji fpv videooutscript (from [here](https://github.com/fpv-wtf/voc-poc)) to **golang**
 
 The intersting thing is that it seems to **start working in low power mode** as well
 
 Also this script should support unplugging and replugging USB, disconnecting / reconnecting the drone and should not care if it is started while the goggles are off
 
+It will also work with **multiple googles at once**, so if you connect new ones while it is running it will open new ffplay instances for you
+
 FFMpeg needs to be available in your path, it will be started by the go binary automatically
 
 ## Running
 
-I usually run this like so:
-go run .
+Make sure you have go and ffmpeg installed, then run like this:
+
+`go run .`
 
 Crosscompilation does not work in an easy way due to the dependency on libusb
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	log "github.com/s00500/env_logger"
@@ -13,73 +14,96 @@ import (
 var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
 
 func main() {
-	log.Info("Starting")
+	log.Info("Starting djifpvvideout")
 
-	// TODO:
-	// Open video stream
-	// Write videostream to fifo, alternatively start omx via dbus and instantly output!
+	openPorts := make([]string, 0)
+	openPortsMu := sync.RWMutex{}
 
 	ctx := gousb.NewContext()
 	defer ctx.Close()
 
-	ffmpegIn := StartFFMPEGInstance()
+	vid, pid := gousb.ID(0x2ca3), gousb.ID(0x001f)
 
 	for {
-		// Open any device with a given VID/PID using a convenience function.
-		dev, err := ctx.OpenDeviceWithVIDPID(0x2ca3, 0x001f)
-		if err != nil {
-			log.Errorf("Could not open googles, retrying in 2 seconds: %v", err)
-			time.Sleep(time.Second * 2)
-			continue
-		}
-		if dev == nil {
-			log.Error("No device found, retrying in 2 seconds")
-			time.Sleep(time.Second * 2)
+		devs, err := ctx.OpenDevices(func(d *gousb.DeviceDesc) bool {
+			// this function is called for every device present.
+			// Returning true means the device should be opened.
+			if d.Vendor != vid || d.Product != pid {
+				return false
+			}
+
+			openPortsMu.RLock()
+			defer openPortsMu.RUnlock()
+			return !containsString(openPorts, fmt.Sprintf("%d.%d", d.Bus, d.Address))
+		})
+
+		log.MustFatal(err)
+		if len(devs) == 0 {
+			time.Sleep(time.Second * 3)
 			continue
 		}
 
-		// claim interface
-		intf, done, err := googleInterface(dev)
-		if err != nil {
-			log.Errorf("%s.GoogleInterface: %v", dev, err)
-			continue
-		}
+		log.Info("Found ", len(devs), " devices")
 
-		ep, err := intf.OutEndpoint(3)
-		if err != nil {
-			log.Errorf("%s.OutEndpoint: %v", intf, err)
-			continue
-		}
+		for _, devInArray := range devs {
+			dev := devInArray
+			openPortsMu.Lock()
+			openPorts = append(openPorts, fmt.Sprintf("%d.%d", dev.Desc.Bus, dev.Desc.Address))
+			openPortsMu.Unlock()
 
-		inEP, err := intf.InEndpoint(4)
-		if err != nil {
-			log.Errorf("%s.InEndpoint: %v", intf, err)
-			continue
-		}
+			go func() {
+				log.Infof("connecting to device on %d.%d", dev.Desc.Bus, dev.Desc.Address)
+				openStream(dev)
+				dev.Close()
+				openPortsMu.Lock()
+				openPorts = deleteElement(openPorts, fmt.Sprintf("%d.%d", dev.Desc.Bus, dev.Desc.Address))
+				openPortsMu.Unlock()
+				log.Warnf("lost device on %d.%d", dev.Desc.Bus, dev.Desc.Address)
 
-		// Write data to the USB device.
-		numBytes, err := ep.Write(magicStartBytes)
-		if numBytes != len(magicStartBytes) {
-			log.Errorf("%s.Write(%d): only %d bytes written, returned error is %v", ep, len(magicStartBytes), numBytes, err)
-			continue
+			}()
 		}
-		//log.Println("bytes successfully sent to the endpoint")
-
-		stream, err := inEP.NewStream(512, 3) // Took default form github
-		if err != nil {
-			log.Errorf("Could not open stream: %v", intf, err)
-			continue
-		}
-
-		num, err := io.Copy(ffmpegIn, stream)
-		//num, err := io.Copy(os.Stdout, stream)
-		//_, err = io.Copy(ioutil.Discard, stream)
-		if !log.Should(err) {
-			log.Info("Wrote ", num, " bytes")
-		}
-		done()
-		dev.Close()
+		time.Sleep(time.Second * 3)
 	}
+}
+
+func openStream(dev *gousb.Device) {
+	ffmpegIn, stopPlayer := StartFFMPEGInstance()
+	// claim interface
+	intf, done, err := googleInterface(dev)
+	if err != nil {
+		log.Errorf("%s.GoogleInterface: %v", dev, err)
+		return
+	}
+
+	ep, err := intf.OutEndpoint(3)
+	if err != nil {
+		log.Errorf("%s.OutEndpoint: %v", intf, err)
+		return
+	}
+
+	inEP, err := intf.InEndpoint(4)
+	if err != nil {
+		log.Errorf("%s.InEndpoint: %v", intf, err)
+		return
+	}
+
+	// Write data to the USB device.
+	numBytes, err := ep.Write(magicStartBytes)
+	if numBytes != len(magicStartBytes) {
+		log.Errorf("%s.Write(%d): only %d bytes written, returned error is %v", ep, len(magicStartBytes), numBytes, err)
+		return
+	}
+	//log.Println("bytes successfully sent to the endpoint")
+
+	stream, err := inEP.NewStream(512, 3) // Took default form github
+	if err != nil {
+		log.Errorf("Could not open stream: %v", intf, err)
+		return
+	}
+
+	io.Copy(ffmpegIn, stream)
+	stopPlayer()
+	done()
 }
 
 func googleInterface(d *gousb.Device) (intf *gousb.Interface, done func(), err error) {
@@ -100,4 +124,22 @@ func googleInterface(d *gousb.Device) (intf *gousb.Interface, done func(), err e
 		intf.Close()
 		cfg.Close()
 	}, nil
+}
+
+func containsString(all []string, one string) bool {
+	for _, s := range all {
+		if s == one {
+			return true
+		}
+	}
+	return false
+}
+
+func deleteElement(all []string, one string) []string {
+	for index, elem := range all {
+		if elem == one {
+			return append(all[:index], all[index+1:]...)
+		}
+	}
+	return all
 }
