@@ -26,6 +26,7 @@ Used Caddx Vista and GooglesV2
 
 Next thing todo is testing this on a Raspberry Pi
 
+Also I found that this works with a regular USB 2 cable (no need for the usb 3 one)
 ## More usefull Links
 
 - https://github.com/fpv-wtf/voc-poc
