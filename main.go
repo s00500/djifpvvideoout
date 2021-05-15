@@ -4,62 +4,93 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
+
+	log "github.com/s00500/env_logger"
 
 	"github.com/google/gousb"
-	log "github.com/s00500/env_logger"
+	"github.com/sirupsen/logrus"
 )
 
 var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
 
+func init() {
+
+	logger := &logrus.Logger{
+		//Out:       ioutil.Discard,
+		Out:       os.Stderr,
+		Level:     logrus.InfoLevel,
+		Formatter: &logrus.TextFormatter{},
+	}
+	debugConfig, _ := os.LookupEnv("LOG")
+	log.ConfigureAllLoggers(logger, debugConfig)
+}
+
 func main() {
-	//log.Info("Starting")
+	log.Info("Starting")
 
 	// TODO:
 	// Open video stream
 	// Write videostream to fifo, alternatively start omx via dbus and instantly output!
 
-	// Initialize a new Context.
 	ctx := gousb.NewContext()
 	defer ctx.Close()
 
-	// Open any device with a given VID/PID using a convenience function.
-	dev, err := ctx.OpenDeviceWithVIDPID(0x2ca3, 0x001f)
-	if err != nil {
-		log.Fatalf("Could not open a googles: %v", err)
-	}
-	defer dev.Close()
+	for {
+		// Open any device with a given VID/PID using a convenience function.
+		dev, err := ctx.OpenDeviceWithVIDPID(0x2ca3, 0x001f)
+		if err != nil {
+			log.Errorf("Could not open googles, retrying in 2 seconds: %v", err)
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		if dev == nil {
+			log.Error("No device found, retrying in 2 seconds")
+			time.Sleep(time.Second * 2)
+			continue
+		}
 
-	// Claim the default interface using a convenience function.
-	// The default interface is always #0 alt #0 in the currently active
-	// config.
-	intf, done, err := googleInterface(dev)
-	if err != nil {
-		log.Fatalf("%s.GoogleInterface: %v", dev, err)
-	}
-	defer done()
+		// claim interface
+		intf, done, err := googleInterface(dev)
+		if err != nil {
+			log.Errorf("%s.GoogleInterface: %v", dev, err)
+			continue
+		}
 
-	ep, err := intf.OutEndpoint(3)
-	if err != nil {
-		log.Fatalf("%s.OutEndpoint: %v", intf, err)
-	}
+		ep, err := intf.OutEndpoint(3)
+		if err != nil {
+			log.Errorf("%s.OutEndpoint: %v", intf, err)
+			continue
+		}
 
-	inEP, err := intf.InEndpoint(4)
-	if err != nil {
-		log.Fatalf("%s.InEndpoint: %v", intf, err)
-	}
+		inEP, err := intf.InEndpoint(4)
+		if err != nil {
+			log.Errorf("%s.InEndpoint: %v", intf, err)
+			continue
+		}
 
-	// Write data to the USB device.
-	numBytes, err := ep.Write(magicStartBytes)
-	if numBytes != len(magicStartBytes) {
-		log.Fatalf("%s.Write(%d): only %d bytes written, returned error is %v", ep, len(magicStartBytes), numBytes, err)
-	}
-	//log.Println("bytes successfully sent to the endpoint")
+		// Write data to the USB device.
+		numBytes, err := ep.Write(magicStartBytes)
+		if numBytes != len(magicStartBytes) {
+			log.Errorf("%s.Write(%d): only %d bytes written, returned error is %v", ep, len(magicStartBytes), numBytes, err)
+			continue
+		}
+		//log.Println("bytes successfully sent to the endpoint")
 
-	stream, err := inEP.NewStream(512, 3) // Took default form github
-	log.Must(err)
-	num, err := io.Copy(os.Stdout, stream)
-	log.MustFatal(err)
-	log.Info("Wrote ", num, " bytes")
+		stream, err := inEP.NewStream(512, 3) // Took default form github
+		if err != nil {
+			log.Errorf("Could not open stream: %v", intf, err)
+			continue
+		}
+
+		num, err := io.Copy(os.Stdout, stream)
+		//_, err = io.Copy(ioutil.Discard, stream)
+		if !log.Should(err) {
+			log.Info("Wrote ", num, " bytes")
+		}
+		done()
+		dev.Close()
+	}
 }
 
 func googleInterface(d *gousb.Device) (intf *gousb.Interface, done func(), err error) {
