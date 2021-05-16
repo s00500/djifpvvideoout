@@ -96,7 +96,6 @@ func main() {
 
 			go func() {
 				log.Infof("connecting to device on %d.%d", dev.Desc.Bus, dev.Desc.Address)
-				log.Infof("%T", sink)
 				if fifosink, ok := sink.(*FifoSink); ok {
 					fifosink.Path = fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)
 					openStream(dev, fifosink)
