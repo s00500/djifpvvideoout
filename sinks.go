@@ -35,7 +35,7 @@ type GstSink struct {
 }
 
 func (sink GstSink) StartInstance() (io.WriteCloser, func()) {
-	args := []string{"fdsrc", "fd=0", "!", "decodebin3", "!", "videoconvert", "n-threads=8", "!", "autovideosink", "sync=false"}
+	args := []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "n-threads=8", "!", "autovideosink", "sync=false"} // decodebin3 seems to be faster on macOS but does not work on RPI4
 	cmd := exec.Command("gst-launch-1.0", args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
