@@ -15,9 +15,13 @@ import (
 	"github.com/google/gousb"
 )
 
+//go:generate sh injectGitVars.sh
+
 var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
 
 var useGstreamer *bool = flag.Bool("gstreamer", false, "use gstreamer")
+
+var outputMode *string = flag.String("output", "", "different modes presets for the videodisplay")
 
 func main() {
 	redirectStandardLogger()
@@ -25,6 +29,34 @@ func main() {
 	log.Info("Starting djifpvvideout")
 	if useGstreamer != nil && *useGstreamer {
 		log.Info("using gstreamer")
+	}
+
+	outModes := map[string]StreamSink{
+		"gstreamer": &GstSink{
+			Args: []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "n-threads=8", "!", "autovideosink", "sync=false"}, // decodebin3 seems to be faster on macOS but does not work on RPI4
+		},
+		"gstreamer-sync": &GstSink{
+			Args: []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "n-threads=8", "!", "autovideosink"}, // RPI Direct to framebuffer, sync=false messes things up here...
+		},
+		"fifo":   &FifoSink{},
+		"ffplay": &FFPlaySink{},
+	}
+
+	var sink StreamSink
+
+	if useGstreamer != nil && *useGstreamer {
+		sink = new(GstSink)
+		log.Info("Using  gstreamer")
+	} else if outputMode != nil && *outputMode != "" {
+		ok := false
+		sink, ok = outModes[*outputMode]
+		if !ok {
+			log.Fatal("Unknown output mode ", *outputMode)
+		}
+		log.Info("Using ", *outputMode)
+	} else {
+		sink = new(FFPlaySink) // default
+		log.Info("Using ffplay")
 	}
 
 	openPorts := make([]string, 0)
@@ -64,7 +96,14 @@ func main() {
 
 			go func() {
 				log.Infof("connecting to device on %d.%d", dev.Desc.Bus, dev.Desc.Address)
-				openStream(dev)
+				log.Infof("%T", sink)
+				if fifosink, ok := sink.(*FifoSink); ok {
+					fifosink.Path = fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)
+					openStream(dev, fifosink)
+				} else {
+					openStream(dev, sink)
+				}
+
 				dev.Close()
 				openPortsMu.Lock()
 				openPorts = deleteElement(openPorts, fmt.Sprintf("%d.%d", dev.Desc.Bus, dev.Desc.Address))
@@ -76,15 +115,8 @@ func main() {
 	}
 }
 
-func openStream(dev *gousb.Device) {
-	var sink StreamSink
-	if useGstreamer != nil && *useGstreamer {
-		sink = GstSink{}
-	} else {
-		sink = FFPlaySink{}
-		//sink = FifoSink{Path: fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)}
-	}
-	ffmpegIn, stopPlayer := sink.StartInstance()
+func openStream(dev *gousb.Device, sink StreamSink) {
+	sinkIn, stopPlayer := sink.StartInstance()
 	// claim interface
 	intf, done, err := googleInterface(dev)
 	if err != nil {
@@ -110,7 +142,7 @@ func openStream(dev *gousb.Device) {
 		log.Errorf("%s.Write(%d): only %d bytes written, returned error is %v", ep, len(magicStartBytes), numBytes, err)
 		return
 	}
-	//log.Println("bytes successfully sent to the endpoint")
+	log.Debug("magic bytes successfully sent to the endpoint")
 
 	stream, err := inEP.NewStream(512, 3) // Took default form github
 	if err != nil {
@@ -118,7 +150,7 @@ func openStream(dev *gousb.Device) {
 		return
 	}
 
-	io.Copy(ffmpegIn, stream)
+	io.Copy(sinkIn, stream)
 	stopPlayer()
 	done()
 }
