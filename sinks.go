@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"os"
 	"os/exec"
 	"syscall"
 
@@ -34,7 +35,7 @@ type GstSink struct {
 }
 
 func (sink GstSink) StartInstance() (io.WriteCloser, func()) {
-	args := []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "!", "autovideosink"}
+	args := []string{"fdsrc", "fd=0", "!", "decodebin3", "!", "videoconvert", "n-threads=8", "!", "autovideosink", "sync=false"}
 	cmd := exec.Command("gst-launch-1.0", args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -61,5 +62,24 @@ func (sink UdpSink) StartInstance() (io.WriteCloser, func()) {
 	log.MustFatal(cmd.Start())
 	return stdin, func() {
 		cmd.Process.Signal(syscall.SIGKILL) // Not ellegant... could try sigterm and wait before...
+	}
+}
+
+type FifoSink struct {
+	Path string
+}
+
+func (sink FifoSink) StartInstance() (io.WriteCloser, func()) {
+	os.Remove(sink.Path)
+	err := syscall.Mkfifo(sink.Path, 0666)
+	if err != nil {
+		log.Fatal("Make named pipe file error:", err)
+	}
+	f, err := os.OpenFile(sink.Path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	log.MustFatal(err)
+
+	return f, func() {
+		f.Close()
+		os.Remove(sink.Path)
 	}
 }

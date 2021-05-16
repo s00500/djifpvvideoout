@@ -77,8 +77,8 @@ func openStream(dev *gousb.Device) {
 	if useGstreamer != nil && *useGstreamer {
 		sink = GstSink{}
 	} else {
-		sink = FFPlaySink{}
-
+		//sink = FFPlaySink{}
+		sink = FifoSink{Path: fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)}
 	}
 	ffmpegIn, stopPlayer := sink.StartInstance()
 	// claim interface
