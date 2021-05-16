@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
 	"sync"
 	"time"
+
+	golog "log"
 
 	log "github.com/s00500/env_logger"
 
@@ -17,6 +20,7 @@ var magicStartBytes = []byte{0x52, 0x4d, 0x56, 0x54}
 var useGstreamer *bool = flag.Bool("gstreamer", false, "use gstreamer")
 
 func main() {
+	redirectStandardLogger()
 	flag.Parse()
 	log.Info("Starting djifpvvideout")
 	if useGstreamer != nil && *useGstreamer {
@@ -77,8 +81,8 @@ func openStream(dev *gousb.Device) {
 	if useGstreamer != nil && *useGstreamer {
 		sink = GstSink{}
 	} else {
-		//sink = FFPlaySink{}
-		sink = FifoSink{Path: fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)}
+		sink = FFPlaySink{}
+		//sink = FifoSink{Path: fmt.Sprintf("stream%d-%d.fifo", dev.Desc.Bus, dev.Desc.Address)}
 	}
 	ffmpegIn, stopPlayer := sink.StartInstance()
 	// claim interface
@@ -155,4 +159,17 @@ func deleteElement(all []string, one string) []string {
 		}
 	}
 	return all
+}
+
+func redirectStandardLogger() {
+	// Redirect the default logger to catch the usb errors on a different log level
+	src, dst := io.Pipe()
+	golog.Default().SetOutput(dst)
+	scanner := bufio.NewScanner(src)
+	otherLogger := log.GetLoggerForPrefix("others")
+	go func() {
+		for scanner.Scan() {
+			otherLogger.Trace(scanner.Text())
+		}
+	}()
 }
