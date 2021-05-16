@@ -26,7 +26,7 @@ var outputMode *string = flag.String("output", "", "different modes presets for 
 func main() {
 	redirectStandardLogger()
 	flag.Parse()
-	log.Info("Starting djifpvvideout")
+	log.Infof("Starting djifpvvideout version %s (commit %s)", gitTag, gitRevision)
 	if useGstreamer != nil && *useGstreamer {
 		log.Info("using gstreamer")
 	}
