@@ -83,3 +83,18 @@ func (sink FifoSink) StartInstance() (io.WriteCloser, func()) {
 		os.Remove(sink.Path)
 	}
 }
+
+type HelloVideoSink struct {
+}
+
+func (sink HelloVideoSink) StartInstance() (io.WriteCloser, func()) {
+	cmd := exec.Command("/opt/vc/src/hello_pi/hello_video/hello_video.bin")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		log.Fatal("Could not get hellovideo stdin")
+	}
+	log.MustFatal(cmd.Start())
+	return stdin, func() {
+		cmd.Process.Signal(syscall.SIGKILL) // Not ellegant... could try sigterm and wait before...
+	}
+}

@@ -39,6 +39,7 @@ func main() {
 			Args: []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "n-threads=8", "!", "autovideosink"}, // RPI Direct to framebuffer, sync=false messes things up here...
 		},
 		"fifo":   &FifoSink{},
+		"hello":  &HelloVideoSink{},
 		"ffplay": &FFPlaySink{},
 	}
 
@@ -80,7 +81,10 @@ func main() {
 			return !containsString(openPorts, fmt.Sprintf("%d.%d", d.Bus, d.Address))
 		})
 
-		log.MustFatal(err)
+		if log.Should(err) {
+			time.Sleep(time.Second)
+			continue
+		}
 		if len(devs) == 0 {
 			time.Sleep(time.Second * 3)
 			continue
