@@ -89,6 +89,7 @@ type HelloVideoSink struct {
 
 func (sink HelloVideoSink) StartInstance() (io.WriteCloser, func()) {
 	cmd := exec.Command("/etc/hello_video.bin")
+	cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=/opt/vc/lib")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		log.Fatal("Could not get hellovideo stdin")
