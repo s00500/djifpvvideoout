@@ -88,7 +88,7 @@ type HelloVideoSink struct {
 }
 
 func (sink HelloVideoSink) StartInstance() (io.WriteCloser, func()) {
-	cmd := exec.Command("/opt/vc/src/hello_pi/hello_video/hello_video.bin")
+	cmd := exec.Command("/etc/hello_video.bin")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		log.Fatal("Could not get hellovideo stdin")
