@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"os/exec"
@@ -88,13 +89,41 @@ type HelloVideoSink struct {
 }
 
 func (sink HelloVideoSink) StartInstance() (io.WriteCloser, func()) {
+	logger := log.GetLoggerForPrefix("hellosink")
+
 	cmd := exec.Command("/etc/hello_video.bin")
 	cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH=/opt/vc/lib")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Fatal("Could not get hellovideo stdin")
+		logger.Fatal("Could not get hellovideo stdin")
 	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logger.Fatal("Could not get hellovideo stderr")
+	}
+
+	go func() {
+		errScanner := bufio.NewScanner(stderr)
+
+		for errScanner.Scan() {
+			logger.Error(errScanner.Text())
+		}
+	}()
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logger.Fatal("Could not get hellovideo stdout")
+	}
+	go func() {
+		outScanner := bufio.NewScanner(stdout)
+		for outScanner.Scan() {
+			logger.Warn(outScanner.Text())
+		}
+	}()
+
 	log.MustFatal(cmd.Start())
+
 	return stdin, func() {
 		cmd.Process.Signal(syscall.SIGKILL) // Not ellegant... could try sigterm and wait before...
 	}
