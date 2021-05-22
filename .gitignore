@@ -2,3 +2,6 @@
 main
 djifpvvideoout
 gitinfo.go
+*.h264
+*.fifo
+*.bin
