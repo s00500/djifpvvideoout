@@ -67,7 +67,14 @@ After playing a bit with different setupd (buildroot, alpine, customPiOS) i have
 I have therefore included a new alpine image to test in this repository. If you are interested in the other setups just write me an [email](mailto:lukas@lbsfilm.at). I have a running image based on custompios and raspbian lite to test as well.
 
 
-This has so far only been tested on a RaspberryPi4 with 4GB but it should work on all Pis. **Please let me know if you find it works for you on a different PI**
+This has so far been tested on
+- Raspberry Pi 4 with 4GB
+- Raspberry Pi 3B+
+- Raspberry Pi 2
+
+**Please let me know if you find it works for you on a different PI**
+
+RaspberryPi 0 and RaspberryPi 1 are currently not supported. I have also created images for these though, but I have only gotten kind of inconsistent playback with long delays.
 
 The image includes a pre-built version of the hello_pi example to display video via OpenMaxIL and a brebuilt version of this code here to handle connection and googles.
 
