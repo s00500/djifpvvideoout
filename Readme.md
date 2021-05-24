@@ -38,7 +38,13 @@ On mac create a folder in /Library/Application Support/obs-studio/plugins called
 
 On macOS you can use the prebuilt binary, but carefull: this requires gstreamer to be installed via macports, not brew.
 
-If you installed it with brew you will need to copy over the binaries to where the plugin expects them (TODO: Document paths)
+If you installed it with brew you will need to copy over the binaries to where the plugin expects them. Here is a list of paths I had to copy, versions might differ in the future or you system
+
+- `cp /usr/local/Cellar/gstreamer/1.18.4/lib/libgstreamer-1.0.0.dylib /opt/local/lib/`
+- `cp /usr/local/Cellar/gst-plugins-base/1.18.4/lib/libgstapp-1.0.0.dylib /opt/local/lib/`
+- `cp /usr/local/Cellar/gst-plugins-base/1.18.4/lib/libgstaudio-1.0.0.dylib /opt/local/lib/`
+- `cp /usr/local/Cellar/gst-plugins-base/1.18.4/lib/libgstvideo-1.0.0.dylib /opt/local/lib/`
+- `cp /usr/local/Cellar/glib/2.68.2/lib/libgobject-2.0.0.dylib /opt/local/lib/`
 
 Then create a new gstreamer source in obs and enter this command:
 
