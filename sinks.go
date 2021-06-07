@@ -85,6 +85,19 @@ func (sink FifoSink) StartInstance() (io.WriteCloser, func()) {
 	}
 }
 
+type FileSink struct {
+	Path string
+}
+
+func (sink FileSink) StartInstance() (io.WriteCloser, func()) {
+	f, err := os.OpenFile(sink.Path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	log.MustFatal(err)
+
+	return f, func() {
+		f.Close()
+	}
+}
+
 type HelloVideoSink struct {
 }
 

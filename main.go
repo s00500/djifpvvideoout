@@ -38,7 +38,11 @@ func main() {
 		"gstreamer-sync": &GstSink{
 			Args: []string{"fdsrc", "fd=0", "!", "decodebin", "!", "videoconvert", "n-threads=8", "!", "autovideosink"}, // RPI Direct to framebuffer, sync=false messes things up here...
 		},
+		"gstreamer-rtmp": &GstSink{
+			Args: []string{"fdsrc", "fd=0", "!", "h264parse", "config-interval=1", "update-timecode=true", "!", "flvmux", "!", "rtmpsink", "location='rtmp://127.0.0.1/live/HkwUDjiqu'"}, // gstreamer rtmp direct test
+		},
 		"fifo":   &FifoSink{},
+		"file":   &FileSink{Path: "somerec.bin"},
 		"hello":  &HelloVideoSink{},
 		"ffplay": &FFPlaySink{},
 	}
